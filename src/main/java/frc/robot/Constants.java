@@ -21,6 +21,7 @@ import edu.wpi.first.wpilibj.util.Units;
  * wherever the constants are needed, to reduce verbosity.
  */
 public final class Constants {
+    public static final String CONFIGS_FILE = "/home/lvuser/constants.csv";
     public static final class OIConstants {
         public static final int DRIVER_PORT = 0;
     }

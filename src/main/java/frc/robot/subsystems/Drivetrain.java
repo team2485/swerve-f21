@@ -10,8 +10,9 @@ import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.DriveConstants;
+import io.github.oblarg.oblog.Loggable;
 
-public class Drivetrain extends SubsystemBase{
+public class Drivetrain extends SubsystemBase implements Loggable{
 
     private final PigeonIMU pigeon;
     

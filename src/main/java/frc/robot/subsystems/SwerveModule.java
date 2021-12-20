@@ -7,6 +7,8 @@ import frc.team2485.WarlordsLib.motorcontrol.WL_TalonFX;
 import frc.team2485.WarlordsLib.robotConfigs.RobotConfigs;
 import frc.team2485.WarlordsLib.sensors.TalonEncoder;
 import frc.team2485.WarlordsLib.sensors.TalonEncoder.TalonEncoderType;
+import io.github.oblarg.oblog.Loggable;
+import io.github.oblarg.oblog.annotations.Log;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
@@ -14,6 +16,7 @@ import com.ctre.phoenix.motorcontrol.RemoteSensorSource;
 import com.ctre.phoenix.motorcontrol.can.TalonFXConfiguration;
 import com.ctre.phoenix.sensors.CANCoder;
 import com.ctre.phoenix.sensors.CANCoderConfiguration;
+import com.ctre.phoenix.sensors.SensorInitializationStrategy;
 
 import edu.wpi.first.wpilibj.Sendable;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
@@ -24,8 +27,10 @@ import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile;
 import frc.robot.Constants;
 import frc.robot.Constants.ModuleConstants;
 
-public class SwerveModule{
+public class SwerveModule implements Loggable{
+    @Log(width = 2)
     private final PIDTalonFX driveMotor;
+    @Log(width = 2)
     private final PIDTalonFX angleMotor;
 
     private final CANCoder angleEncoder; 
@@ -45,6 +50,7 @@ public class SwerveModule{
 
         this.angleEncoder = new CANCoder(angleEncoderID);
         CANCoderConfiguration canCoderConfig = new CANCoderConfiguration();
+        canCoderConfig.initializationStrategy = SensorInitializationStrategy.BootToAbsolutePosition;
         canCoderConfig.magnetOffsetDegrees = offset.getDegrees();
         angleEncoder.configAllSettings(canCoderConfig);
 
@@ -65,15 +71,26 @@ public class SwerveModule{
     }
 
     public void addToShuffleboard() {
-        ShuffleboardTab tab = Shuffleboard.getTab("Drivetrain");
-        tab.add(driveMotor);
-        tab.addNumber("Encoder [" + moduleID + "] absolute position", angleEncoder::getAbsolutePosition);
-        tab.add("Angle Motor [" + moduleID + "]", angleMotor);
+        // ShuffleboardTab tab = Shuffleboard.getTab("Drivetrain");
+        // tab.add(driveMotor);
+        // tab.addNumber("Encoder [" + moduleID + "] absolute position", angleEncoder::getAbsolutePosition);
+        // tab.add("Angle Motor [" + moduleID + "]", angleMotor);
     }
 
     public SwerveModuleState getState() {
         return new SwerveModuleState(driveMotor.getEncoderVelocity(), new Rotation2d(angleEncoder.getAbsolutePosition()));
     }
+
+    @Log
+    private double getAngleDegrees() {
+        return this.getState().angle.getDegrees();
+    }
+
+    @Log
+    private double getSpeedMetersPerSecond() {
+        return this.getState().speedMetersPerSecond;
+    }
+    
 
     public void setDesiredState(SwerveModuleState desiredState) {
         Rotation2d currentRotation = Rotation2d.fromDegrees(angleEncoder.getAbsolutePosition());
@@ -93,5 +110,8 @@ public class SwerveModule{
         
     }
 
+    public String configureLogName() {
+        return moduleID;
+    }
     
 }
