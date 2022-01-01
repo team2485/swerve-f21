@@ -4,27 +4,45 @@
 
 package frc.robot;
 
+import java.util.List;
+
+import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.NeutralMode;
+
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.GenericHID.Hand;
+import edu.wpi.first.wpilibj.controller.PIDController;
+import edu.wpi.first.wpilibj.controller.ProfiledPIDController;
+import edu.wpi.first.wpilibj.geometry.Pose2d;
+import edu.wpi.first.wpilibj.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.geometry.Translation2d;
+import edu.wpi.first.wpilibj.kinematics.SwerveModuleState;
+import edu.wpi.first.wpilibj.trajectory.Trajectory;
+import edu.wpi.first.wpilibj.trajectory.TrajectoryConfig;
+import edu.wpi.first.wpilibj.trajectory.TrajectoryGenerator;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
+import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
+import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.OIConstants;
 import frc.robot.subsystems.Drivetrain;
+import frc.team2485.WarlordsLib.oi.Deadband;
 import frc.team2485.WarlordsLib.oi.WL_XboxController;
 
 public class RobotContainer {
 
-  private final Drivetrain drivetrain;
-  private final WL_XboxController driver;
+  private final Drivetrain m_drivetrain;
+  private final WL_XboxController m_driver;
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
    */
   public RobotContainer() {
-    driver = new WL_XboxController(OIConstants.DRIVER_PORT);
-    drivetrain = new Drivetrain();
+    m_driver = new WL_XboxController(OIConstants.DRIVER_PORT);
+    m_drivetrain = new Drivetrain();
 
     // Configure the button bindings
     configureButtonBindings();
@@ -35,15 +53,19 @@ public class RobotContainer {
   }
 
   private void configureDrivetrainCommands() {
-    drivetrain.setDefaultCommand(
+    m_drivetrain.setDefaultCommand(
       new RunCommand(()-> {
-        drivetrain.drive(
-          -driver.getY(Hand.kLeft) * DriveConstants.MAX_SPEED,
-          -driver.getX(Hand.kLeft) * DriveConstants.MAX_SPEED,
-          -driver.getX(Hand.kRight) * DriveConstants.MAX_ANGULAR_SPEED,
-          driver.getBumper(Hand.kLeft)
-        );}, drivetrain)
+        m_drivetrain.drive(
+          -modifyAxis(m_driver.getY(Hand.kLeft)) * DriveConstants.kMaxSpeedMetersPerSecond,
+          -modifyAxis(m_driver.getX(Hand.kLeft)) * DriveConstants.kMaxSpeedMetersPerSecond,
+          -modifyAxis(m_driver.getX(Hand.kRight)) * DriveConstants.kMaxAngularSpeedRadiansPerSecond,
+          true
+        );}, m_drivetrain)
       );
+
+    m_driver.getJoystickButton(XboxController.Button.kX).whenPressed(
+      new InstantCommand(m_drivetrain::zeroHeading)
+    );
     
   }
 
@@ -54,6 +76,60 @@ public class RobotContainer {
    */
   public Command getAutonomousCommand() {
     // An ExampleCommand will run in autonomous
-    return null; 
+   // Create config for trajectory
+    TrajectoryConfig config =
+        new TrajectoryConfig(
+                AutoConstants.kMaxSpeedMetersPerSecond,
+                AutoConstants.kMaxAccelerationMetersPerSecondSquared)
+            // Add kinematics to ensure max speed is actually obeyed
+            .setKinematics(DriveConstants.kDriveKinematics);
+
+    // An example trajectory to follow.  All units in meters.
+    Trajectory exampleTrajectory =
+        TrajectoryGenerator.generateTrajectory(
+            // Start at the origin facing the +X direction
+            new Pose2d(0, 0, new Rotation2d(0)),
+            // Pass through these two interior waypoints, making an 's' curve path
+            List.of(new Translation2d(0.5, 0.5), new Translation2d(0.7, -0.3)),
+            // End 3 meters straight ahead of where we started, facing forward
+            new Pose2d(1.2, 0, new Rotation2d(0)),
+            config);
+
+    var thetaController =
+        new ProfiledPIDController(
+            AutoConstants.kPThetaController, 0, 0, AutoConstants.kThetaControllerConstraints);
+    thetaController.enableContinuousInput(-Math.PI, Math.PI);
+
+    SwerveControllerCommand swerveControllerCommand =
+        new SwerveControllerCommand(
+            exampleTrajectory,
+            m_drivetrain::getPoseMeters, // Functional interface to feed supplier
+            DriveConstants.kDriveKinematics,
+            // Position controllers
+            new PIDController(AutoConstants.kPXController, 0, 0),
+            new PIDController(AutoConstants.kPYController, 0, 0),
+            thetaController,
+            m_drivetrain::setModuleStates,
+            m_drivetrain);
+
+    // Reset odometry to the starting pose of the trajectory.
+    m_drivetrain.resetOdometry(exampleTrajectory.getInitialPose());
+
+    // Run path following command, then stop at the end.
+    return swerveControllerCommand.andThen(() -> m_drivetrain.drive(0, 0, 0, false));  }
+
+  public void configureDriveBreakMode() {
+    m_drivetrain.setDriveNeutralMode(NeutralMode.Brake);
+  }
+
+  public void configureDriveCoastMode() {
+    m_drivetrain.setDriveNeutralMode(NeutralMode.Coast);
+  }
+  public void testPeriodic() {
+
+  }
+
+  private static double modifyAxis(double value) {
+    return Deadband.squareScaleDeadband(value, 0.1);
   }
 }

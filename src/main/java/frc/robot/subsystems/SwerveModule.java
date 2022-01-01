@@ -1,117 +1,152 @@
 package frc.robot.subsystems;
 
 import frc.team2485.WarlordsLib.control.WL_PIDController;
-import frc.team2485.WarlordsLib.control.WL_ProfiledPIDController;
 import frc.team2485.WarlordsLib.motorcontrol.PIDTalonFX;
 import frc.team2485.WarlordsLib.motorcontrol.WL_TalonFX;
 import frc.team2485.WarlordsLib.robotConfigs.RobotConfigs;
 import frc.team2485.WarlordsLib.sensors.TalonEncoder;
 import frc.team2485.WarlordsLib.sensors.TalonEncoder.TalonEncoderType;
 import io.github.oblarg.oblog.Loggable;
+import io.github.oblarg.oblog.ShuffleboardContainerWrapper;
+import io.github.oblarg.oblog.annotations.Config;
 import io.github.oblarg.oblog.annotations.Log;
 
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.RemoteSensorSource;
 import com.ctre.phoenix.motorcontrol.can.TalonFXConfiguration;
+import com.ctre.phoenix.motorcontrol.can.WPI_TalonFX;
+import com.ctre.phoenix.sensors.AbsoluteSensorRange;
 import com.ctre.phoenix.sensors.CANCoder;
 import com.ctre.phoenix.sensors.CANCoderConfiguration;
 import com.ctre.phoenix.sensors.SensorInitializationStrategy;
-
+import edu.wpi.first.wpilibj.controller.PIDController;
+import edu.wpi.first.wpilibj.controller.ProfiledPIDController;
+import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward;
 import edu.wpi.first.wpilibj.Sendable;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile;
 import frc.robot.Constants;
 import frc.robot.Constants.ModuleConstants;
 
-public class SwerveModule implements Loggable{
-    @Log(width = 2)
-    private final PIDTalonFX driveMotor;
-    @Log(width = 2)
-    private final PIDTalonFX angleMotor;
+public class SwerveModule implements Loggable {
+    
+    private final WPI_TalonFX m_driveMotor;
+    private final WPI_TalonFX m_turningMotor;
+    private final CANCoder m_turningEncoder; 
 
-    private final CANCoder angleEncoder; 
+    @Config
+    private final PIDController m_drivePIDController =
+        new PIDController(ModuleConstants.kPDrive, 0, 0);
 
-    private final String moduleID;
+    SimpleMotorFeedforward m_driveFeedforward = new SimpleMotorFeedforward(
+        ModuleConstants.ksVoltsDrive, ModuleConstants.kvVoltSecondsPerMeterDrive);
+
+
+    @Config
+    private final ProfiledPIDController m_turningPIDController = 
+        new ProfiledPIDController(
+            ModuleConstants.kPTurning, 
+            0,
+            0.1,
+            new TrapezoidProfile.Constraints(
+                ModuleConstants.kMaxModuleAngularSpeedRadiansPerSecond,
+                ModuleConstants.kMaxModuleAngularAccelerationRadiansPerSecondSquared));
+
+    SimpleMotorFeedforward m_turningFeedforward = new SimpleMotorFeedforward(
+        ModuleConstants.ksVoltsTurning, ModuleConstants.kvVoltSecondsPerMeterTurning);
+
+    private final String m_moduleID;
     public SwerveModule( 
         int driveMotorID,
-        int angleMotorID,
-        int angleEncoderID, 
-        Rotation2d offset, 
+        int turningMotorID,
+        int turningEncoderID, 
+        Rotation2d zero, 
         String moduleID) {
         
-        this.moduleID = moduleID;
+        this.m_moduleID = moduleID;
 
-        this.driveMotor = new PIDTalonFX(driveMotorID, ControlMode.Velocity);
-        this.angleMotor = new PIDTalonFX(angleMotorID, ControlMode.Position);
+        this.m_driveMotor = new WPI_TalonFX(driveMotorID);
+        this.m_turningMotor = new WPI_TalonFX(turningMotorID);
 
-        this.angleEncoder = new CANCoder(angleEncoderID);
-        CANCoderConfiguration canCoderConfig = new CANCoderConfiguration();
-        canCoderConfig.initializationStrategy = SensorInitializationStrategy.BootToAbsolutePosition;
-        canCoderConfig.magnetOffsetDegrees = offset.getDegrees();
-        angleEncoder.configAllSettings(canCoderConfig);
 
-        TalonFXConfiguration angleMotorConfig = new TalonFXConfiguration();
+        this.m_turningEncoder = new CANCoder(turningEncoderID);
 
-        // Use the CANCoder as the remote sensor for the primary TalonFX PID
-        angleMotorConfig.remoteFilter0.remoteSensorDeviceID = angleEncoderID;
-        angleMotorConfig.remoteFilter0.remoteSensorSource = RemoteSensorSource.CANCoder;
-        angleMotorConfig.primaryPID.selectedFeedbackSensor = FeedbackDevice.RemoteSensor0;
-        angleMotor.configAllSettings(angleMotorConfig);
+        m_turningEncoder.configMagnetOffset(-zero.getDegrees());
+        m_turningEncoder.configAbsoluteSensorRange(AbsoluteSensorRange.Signed_PlusMinus180);
 
-        this.driveMotor.setDistancePerPulse(ModuleConstants.DRIVE_DIST_PER_PULSE);
-
-        RobotConfigs.getInstance().addConfigurable(moduleID + "swerveAngleController", angleMotor);
-
+        m_turningPIDController.enableContinuousInput(-Math.PI, Math.PI);
         
         
     }
 
-    public void addToShuffleboard() {
-        // ShuffleboardTab tab = Shuffleboard.getTab("Drivetrain");
-        // tab.add(driveMotor);
-        // tab.addNumber("Encoder [" + moduleID + "] absolute position", angleEncoder::getAbsolutePosition);
-        // tab.add("Angle Motor [" + moduleID + "]", angleMotor);
+    public void addCustomLogging(ShuffleboardContainerWrapper container) {
     }
+
 
     public SwerveModuleState getState() {
-        return new SwerveModuleState(driveMotor.getEncoderVelocity(), new Rotation2d(angleEncoder.getAbsolutePosition()));
+        return new SwerveModuleState(this.getSpeedMetersPerSecond(), this.getHeading());
     }
 
-    @Log
-    private double getAngleDegrees() {
-        return this.getState().angle.getDegrees();
+    @Log(name = "Heading Degrees")
+    private double getHeadingDegrees() {
+        return m_turningEncoder.getAbsolutePosition();
     }
 
-    @Log
+    private Rotation2d getHeading() {
+        return Rotation2d.fromDegrees(m_turningEncoder.getAbsolutePosition());
+    }
+
+    @Log(name = "Speed meters per second")
     private double getSpeedMetersPerSecond() {
-        return this.getState().speedMetersPerSecond;
+        return m_driveMotor.getSelectedSensorVelocity() * ModuleConstants.kDriveDistMetersPerPulse;
     }
     
 
     public void setDesiredState(SwerveModuleState desiredState) {
-        Rotation2d currentRotation = Rotation2d.fromDegrees(angleEncoder.getAbsolutePosition());
+        double currentSpeedMetersPerSecond = this.getSpeedMetersPerSecond();
+        Rotation2d currentHeading = this.getHeading();
 
         SwerveModuleState state = 
-            SwerveModuleState.optimize(desiredState, currentRotation);
+            SwerveModuleState.optimize(desiredState, currentHeading);
         
-        Rotation2d rotationDelta = state.angle.minus(currentRotation);
+        
+        final double driveOutputVolts = 
+            m_drivePIDController.calculate(currentSpeedMetersPerSecond, state.speedMetersPerSecond)
+            + m_driveFeedforward.calculate(state.speedMetersPerSecond);
 
-        double deltaTicks = (rotationDelta.getDegrees() / 360) * ModuleConstants.CANCODER_CPR;
-        double currentTicks = angleEncoder.getPosition() / angleEncoder.configGetFeedbackCoefficient();
-        double desiredTicks = currentTicks + deltaTicks;
+        final double turningOutputVolts = 
+            m_turningPIDController.calculate(currentHeading.getRadians(), state.angle.getRadians()) 
+            + m_turningFeedforward.calculate(m_turningPIDController.getSetpoint().velocity);
 
-        angleMotor.runPID(desiredTicks);
+        m_driveMotor.setVoltage(driveOutputVolts);
+        m_turningMotor.setVoltage(turningOutputVolts);
 
-        driveMotor.set(ControlMode.PercentOutput, state.speedMetersPerSecond / Constants.DriveConstants.MAX_SPEED);
+        SmartDashboard.putNumber("turn setpoint velocity", m_turningPIDController.getSetpoint().velocity);
+        SmartDashboard.putNumber("drive output", driveOutputVolts);
+        SmartDashboard.putNumber("turn output", turningOutputVolts);
         
     }
 
+    public void resetDriveEncoder() {
+        m_driveMotor.setSelectedSensorPosition(0);
+    }
+
+    public WPI_TalonFX getDriveMotor() {
+        return m_driveMotor;
+    }
+
+    public WPI_TalonFX getAngleMotor() {
+        return m_turningMotor;
+    }
+   
+
     public String configureLogName() {
-        return moduleID;
+        return m_moduleID;
     }
     
 }

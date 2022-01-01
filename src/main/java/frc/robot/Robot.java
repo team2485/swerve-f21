@@ -33,7 +33,6 @@ public class Robot extends TimedRobot {
 
     m_robotContainer = new RobotContainer();
     
-
     //Make the robot container the root project for Oblog
     Logger.configureLoggingAndConfig(m_robotContainer, false);
 
@@ -64,6 +63,8 @@ public class Robot extends TimedRobot {
   /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
   @Override
   public void autonomousInit() {
+    m_robotContainer.configureDriveBreakMode(); //important for safety on disable
+
     m_autonomousCommand = m_robotContainer.getAutonomousCommand();
 
     // schedule the autonomous command (example)
@@ -85,6 +86,8 @@ public class Robot extends TimedRobot {
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
     }
+    m_robotContainer.configureDriveCoastMode();
+
   }
 
   /** This function is called periodically during operator control. */
@@ -95,9 +98,13 @@ public class Robot extends TimedRobot {
   public void testInit() {
     // Cancels all running commands at the start of test mode.
     CommandScheduler.getInstance().cancelAll();
+    m_robotContainer.configureDriveCoastMode();
+
   }
 
   /** This function is called periodically during test mode. */
   @Override
-  public void testPeriodic() {}
+  public void testPeriodic() {
+    m_robotContainer.testPeriodic();
+  }
 }

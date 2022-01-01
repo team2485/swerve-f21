@@ -1,59 +1,137 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.sensors.PigeonIMU;
 
+import edu.wpi.first.wpilibj.geometry.Pose2d;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.kinematics.SwerveDriveKinematics;
+import edu.wpi.first.wpilibj.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.wpilibj.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
 import io.github.oblarg.oblog.Loggable;
+import io.github.oblarg.oblog.ShuffleboardContainerWrapper;
+import io.github.oblarg.oblog.annotations.Log;
 
 public class Drivetrain extends SubsystemBase implements Loggable{
 
-    private final PigeonIMU pigeon;
+    private final PigeonIMU m_pigeon;
     
-    private final SwerveModule[] modules;
+   // public final SwerveModule[] m_modules;
+    public final SwerveModule m_frontLeftModule;
+    public final SwerveModule m_frontRightModule;
+    public final SwerveModule m_backLeftModule;
+    public final SwerveModule m_backRightModule;
+
+    private final SwerveDriveOdometry m_odometry;
+    private final Field2d m_field = new Field2d();
+
+    @Log
+    private double desiredXSpeed;
+
+    @Log
+    private double desiredYSpeed;
+
+    @Log
+    private double desiredRotation;
 
     public Drivetrain() {
-        pigeon = new PigeonIMU(DriveConstants.PIGEON_PORT);
+        m_pigeon = new PigeonIMU(DriveConstants.PIGEON_PORT);
 
-        modules = new SwerveModule[] {
-            new SwerveModule(DriveConstants.FL_DRIVE_TALON_PORT, DriveConstants.FL_ANGLE_TALON_PORT, DriveConstants.FL_CANCODER_PORT, DriveConstants.FL_CANCODER_ZERO, "FL"),
-            new SwerveModule(DriveConstants.FR_DRIVE_TALON_PORT, DriveConstants.FR_ANGLE_TALON_PORT, DriveConstants.FR_CANCODER_PORT, DriveConstants.FR_CANCODER_ZERO, "FR"),
-            new SwerveModule(DriveConstants.BL_DRIVE_TALON_PORT, DriveConstants.BL_ANGLE_TALON_PORT, DriveConstants.BL_CANCODER_PORT, DriveConstants.BL_CANCODER_ZERO, "BL"),
-            new SwerveModule(DriveConstants.BR_DRIVE_TALON_PORT, DriveConstants.BR_ANGLE_TALON_PORT, DriveConstants.BR_CANCODER_PORT, DriveConstants.BR_CANCODER_ZERO, "BR")
-        };
-        this.addToShuffleboard();
-    }
-
-    public void addToShuffleboard() {
-        ShuffleboardTab tab = Shuffleboard.getTab("Drivetrain");
-        for (SwerveModule m : modules) {
-            m.addToShuffleboard();
-        }
-
-        tab.addNumber("Gyro heading", pigeon::getFusedHeading);
-
+        m_frontLeftModule = new SwerveModule(DriveConstants.FL_DRIVE_TALON_PORT, DriveConstants.FL_ANGLE_TALON_PORT, DriveConstants.FL_CANCODER_PORT, DriveConstants.FL_CANCODER_ZERO, "FL");
+        m_frontRightModule = new SwerveModule(DriveConstants.FR_DRIVE_TALON_PORT, DriveConstants.FR_ANGLE_TALON_PORT, DriveConstants.FR_CANCODER_PORT, DriveConstants.FR_CANCODER_ZERO, "FR");
+        m_backLeftModule = new SwerveModule(DriveConstants.BL_DRIVE_TALON_PORT, DriveConstants.BL_ANGLE_TALON_PORT, DriveConstants.BL_CANCODER_PORT, DriveConstants.BL_CANCODER_ZERO, "BL");
+        m_backRightModule = new SwerveModule(DriveConstants.BR_DRIVE_TALON_PORT, DriveConstants.BR_ANGLE_TALON_PORT, DriveConstants.BR_CANCODER_PORT, DriveConstants.BR_CANCODER_ZERO, "BR");
         
+        m_odometry = new SwerveDriveOdometry(DriveConstants.kDriveKinematics, Rotation2d.fromDegrees(m_pigeon.getFusedHeading()));
+
+        SmartDashboard.putData("Field", m_field);
+
+        this.zeroHeading();
     }
+
+
     public void drive(double xSpeed, double ySpeed, double rot, boolean fieldRelative) {
         SwerveModuleState[] states =
-        DriveConstants.DRIVE_KINEMATICS.toSwerveModuleStates(
+        DriveConstants.kDriveKinematics.toSwerveModuleStates(
           fieldRelative
-            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeed, ySpeed, rot, Rotation2d.fromDegrees(pigeon.getFusedHeading()))
+            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeed, ySpeed, rot, Rotation2d.fromDegrees(m_pigeon.getFusedHeading()))
             : new ChassisSpeeds(xSpeed, ySpeed, rot));
-        SwerveDriveKinematics.normalizeWheelSpeeds(states, DriveConstants.MAX_SPEED);
-        for (int i = 0; i < states.length; i++) {
-            SwerveModule module = modules[i];
-            SwerveModuleState state = states[i];
-            module.setDesiredState(state);
-        }
+        SwerveDriveKinematics.normalizeWheelSpeeds(states, DriveConstants.kMaxSpeedMetersPerSecond);
+        // for (int i = 0; i < states.length; i++) {
+        //     SwerveModule module = m_modules[i];
+        //     SwerveModuleState state = states[i];
+        //     module.setDesiredState(state);
+        // }
+        m_frontLeftModule.setDesiredState(states[0]);
+        m_frontRightModule.setDesiredState(states[1]);
+        m_backLeftModule.setDesiredState(states[2]);
+        m_backRightModule.setDesiredState(states[3]);
+
+        this.desiredRotation = rot;
+        this.desiredXSpeed = xSpeed;
+        this.desiredYSpeed = ySpeed;
+    }
+
+    //used in autonomous
+    public void setModuleStates(SwerveModuleState[] desiredStates) {
+        SwerveDriveKinematics.normalizeWheelSpeeds(
+            desiredStates, AutoConstants.kMaxSpeedMetersPerSecond);
+        m_frontLeftModule.setDesiredState(desiredStates[0]);
+        m_frontRightModule.setDesiredState(desiredStates[1]);
+        m_backLeftModule.setDesiredState(desiredStates[2]);
+        m_backRightModule.setDesiredState(desiredStates[3]);
     }
     
-    
-    
+    // Resets the drive encoders to currently read a position of 0
+    public void resetDriveEncoders(){
+        m_frontLeftModule.resetDriveEncoder();
+        m_backLeftModule.resetDriveEncoder();
+        m_frontRightModule.resetDriveEncoder();
+        m_backLeftModule.resetDriveEncoder();
+    }
+
+    @Log
+    public double getHeading() {
+        return m_pigeon.getFusedHeading();
+    }
+
+    // Zeroes the heading of the robot
+    public void zeroHeading() {
+        m_pigeon.setFusedHeading(0);
+    }
+
+    public Pose2d getPoseMeters(){
+        return m_odometry.getPoseMeters();
+    }
+        
+    public void resetOdometry(Pose2d pose){
+        m_odometry.resetPosition(pose, Rotation2d.fromDegrees(m_pigeon.getFusedHeading()));
+    }
+
+    public void setDriveNeutralMode(NeutralMode mode) {
+        m_frontLeftModule.getDriveMotor().setNeutralMode(mode); 
+        m_frontRightModule.getDriveMotor().setNeutralMode(mode); 
+        m_backLeftModule.getDriveMotor().setNeutralMode(mode); 
+        m_backRightModule.getDriveMotor().setNeutralMode(mode); 
+    }
+
+    @Override
+    public void periodic() {
+        m_odometry.update(
+            Rotation2d.fromDegrees(m_pigeon.getFusedHeading()),
+            m_frontLeftModule.getState(),
+            m_backRightModule.getState(),
+            m_frontRightModule.getState(),
+            m_backRightModule.getState());
+        
+        m_field.setRobotPose(this.getPoseMeters());
+    }
 }
