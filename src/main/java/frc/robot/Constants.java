@@ -23,7 +23,9 @@ import edu.wpi.first.wpilibj.util.Units;
 public final class Constants {
     public static final String CONFIGS_FILE = "/home/lvuser/constants.csv";
     public static final class OIConstants {
-        public static final int DRIVER_PORT = 0;
+        public static final int kDriverPort = 0;
+        public static final double kDriveDeadband = 0.05;
+        public static final double kDriveSlewRate = 2; //units per second to limit rate to, inverse of how long it will take from 0 to 1
     }
 
     public static final class ModuleConstants {
@@ -103,7 +105,7 @@ public final class Constants {
     }
 
     public static final class AutoConstants {
-        public static final double kMaxSpeedMetersPerSecond = 0.5;
+        public static final double kMaxSpeedMetersPerSecond = 0.6;
         public static final double kMaxAccelerationMetersPerSecondSquared = 0.5;
         public static final double kMaxAngularSpeedRadiansPerSecond = Math.PI;
         public static final double kMaxAngularAccelerationRadiansPerSecondSquared = Math.PI;
