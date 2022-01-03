@@ -9,6 +9,7 @@ import edu.wpi.first.wpilibj.geometry.Translation2d;
 import edu.wpi.first.wpilibj.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile;
 import edu.wpi.first.wpilibj.util.Units;
+import frc.team2485.WarlordsLib.IDManager;
 
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide
@@ -21,10 +22,11 @@ import edu.wpi.first.wpilibj.util.Units;
  * wherever the constants are needed, to reduce verbosity.
  */
 public final class Constants {
-    public static final String CONFIGS_FILE = "/home/lvuser/constants.csv";
+    public static final String kRobotIdFile = "/home/lvuser/id.txt";
+
     public static final class OIConstants {
         public static final int kDriverPort = 0;
-        public static final double kDriveDeadband = 0.05;
+        public static final double kDriveDeadband = 0.08;
         public static final double kDriveSlewRate = 2; //units per second to limit rate to, inverse of how long it will take from 0 to 1
     }
 
@@ -46,67 +48,71 @@ public final class Constants {
         public static final double ksVoltsTurning = 0.722;
         public static final double kvVoltSecondsPerMeterTurning = 0.216;
 
-        public static final double kPDrive = 3;
+        public static final double kPDrive = 4;
         public static final double kPTurning = 5;
-		public static final double kMaxModuleAngularSpeedRadiansPerSecond = 4*Math.PI;
-		public static final double kMaxModuleAngularAccelerationRadiansPerSecondSquared = 4*Math.PI;
+		public static final double kModuleMaxAngularSpeedRadiansPerSecond = 4*Math.PI;
+		public static final double kModuleMaxModuleAngularAccelerationRadiansPerSecondSquared = 4*Math.PI;
 
         
     }
 
     public static final class DriveConstants {
-        public static final int PIGEON_PORT = 9;
+        /**
+         * Zeros found with bevel gears facing right. 
+         * Offset is the negative of the zero. 
+         */
+        public static final int kPigeonPort = 9;
 
-        public static final int FL_DRIVE_TALON_PORT = 1;
-        public static final int FL_ANGLE_TALON_PORT = 2;
-        public static final int FL_CANCODER_PORT = 11;
-        public static final Rotation2d FL_CANCODER_ZERO = Rotation2d.fromDegrees(-3.6);
+        public static final int kFLDriveTalonPort = 1;
+        public static final int kFLAngleTalonPort = 2;
+        public static final int kFLCANCoderPort = 11;
+        public static final Rotation2d kFLCANCoderZero = Rotation2d.fromDegrees(-3.6);
 
-        public static final int FR_DRIVE_TALON_PORT = 3;
-        public static final int FR_ANGLE_TALON_PORT = 4;
-        public static final int FR_CANCODER_PORT = 12;
-        public static final Rotation2d FR_CANCODER_ZERO = Rotation2d.fromDegrees(-167.7);
+        public static final int kFRDriveTalonPort = 3;
+        public static final int kFRAngleTalonPort = 4;
+        public static final int kFRCANCoderPort = 12;
+        public static final Rotation2d kFRCANCoderZero = Rotation2d.fromDegrees(-167.7);
 
-        public static final int BR_DRIVE_TALON_PORT = 5;
-        public static final int BR_ANGLE_TALON_PORT = 6;
-        public static final int BR_CANCODER_PORT = 13;
-        public static final Rotation2d BR_CANCODER_ZERO = Rotation2d.fromDegrees(56.0);
+        public static final int kBRDriveTalonPort = 5;
+        public static final int kBRAngleTalonPort = 6;
+        public static final int kBRCANCoderPort = 13;
+        public static final Rotation2d kBRCANCoderZero = Rotation2d.fromDegrees(56.0);
 
-        public static final int BL_DRIVE_TALON_PORT = 7;
-        public static final int BL_ANGLE_TALON_PORT = 8;
-        public static final int BL_CANCODER_PORT = 14;
-        public static final Rotation2d BL_CANCODER_ZERO = Rotation2d.fromDegrees(139.0);
+        public static final int kBLDriveTalonPort = 7;
+        public static final int kBLAngleTalonPort = 8;
+        public static final int kBLCANCoderPort = 14;
+        public static final Rotation2d kBLCANCoderZero = Rotation2d.fromDegrees(139.0);
 
         //teleop values
-        public static final double kMaxSpeedMetersPerSecond = 1; //meters per second
-        public static final double kMaxAngularSpeedRadiansPerSecond = 10*Math.PI; //radians per second
+        public static final double kTeleopMaxSpeedMetersPerSecond = 1; //meters per second
+        public static final double kTeleopMaxAngularSpeedRadiansPerSecond = 10*Math.PI; //radians per second
 
-        public static final double WHEELBASE_LENGTH = 0.635; //meters
-        public static final double WHEELBASE_WIDTH = 0.508; //meters
+        public static final double kWheelbaseLength = 0.635; //meters
+        public static final double kWheelBaseWidth = 0.508; //meters
         
         public static final SwerveDriveKinematics kDriveKinematics = new SwerveDriveKinematics(
             new Translation2d(
-                Units.inchesToMeters(WHEELBASE_LENGTH/2),
-                Units.inchesToMeters(WHEELBASE_WIDTH/2)
+                Units.inchesToMeters(kWheelbaseLength/2),
+                Units.inchesToMeters(kWheelBaseWidth/2)
             ), 
             new Translation2d(
-                Units.inchesToMeters(WHEELBASE_LENGTH/2),
-                Units.inchesToMeters(-WHEELBASE_WIDTH/2)
+                Units.inchesToMeters(kWheelbaseLength/2),
+                Units.inchesToMeters(-kWheelBaseWidth/2)
             ), 
             new Translation2d(
-                Units.inchesToMeters(-WHEELBASE_LENGTH/2),
-                Units.inchesToMeters(WHEELBASE_WIDTH/2)
+                Units.inchesToMeters(-kWheelbaseLength/2),
+                Units.inchesToMeters(kWheelBaseWidth/2)
             ), 
             new Translation2d(
-                Units.inchesToMeters(-WHEELBASE_LENGTH/2),
-                Units.inchesToMeters(-WHEELBASE_WIDTH/2)
+                Units.inchesToMeters(-kWheelbaseLength/2),
+                Units.inchesToMeters(-kWheelBaseWidth/2)
             )  
         );
     }
 
     public static final class AutoConstants {
-        public static final double kMaxSpeedMetersPerSecond = 0.6;
-        public static final double kMaxAccelerationMetersPerSecondSquared = 0.5;
+        public static final double kAutoMaxSpeedMetersPerSecond = 0.6;
+        public static final double kAutoMaxAccelerationMetersPerSecondSquared = 0.5;
         public static final double kMaxAngularSpeedRadiansPerSecond = Math.PI;
         public static final double kMaxAngularAccelerationRadiansPerSecondSquared = Math.PI;
     

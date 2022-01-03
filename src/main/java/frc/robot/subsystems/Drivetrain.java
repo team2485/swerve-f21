@@ -14,8 +14,8 @@ import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants.AutoConstants;
-import frc.robot.Constants.DriveConstants;
+import static frc.robot.Constants.DriveConstants.*;
+import static frc.robot.Constants.AutoConstants.*;
 import io.github.oblarg.oblog.Loggable;
 import io.github.oblarg.oblog.ShuffleboardContainerWrapper;
 import io.github.oblarg.oblog.annotations.Log;
@@ -43,14 +43,14 @@ public class Drivetrain extends SubsystemBase implements Loggable{
     private double desiredRotation;
 
     public Drivetrain() {
-        m_pigeon = new PigeonIMU(DriveConstants.PIGEON_PORT);
+        m_pigeon = new PigeonIMU(kPigeonPort);
 
-        m_frontLeftModule = new SwerveModule(DriveConstants.FL_DRIVE_TALON_PORT, DriveConstants.FL_ANGLE_TALON_PORT, DriveConstants.FL_CANCODER_PORT, DriveConstants.FL_CANCODER_ZERO, "FL");
-        m_frontRightModule = new SwerveModule(DriveConstants.FR_DRIVE_TALON_PORT, DriveConstants.FR_ANGLE_TALON_PORT, DriveConstants.FR_CANCODER_PORT, DriveConstants.FR_CANCODER_ZERO, "FR");
-        m_backLeftModule = new SwerveModule(DriveConstants.BL_DRIVE_TALON_PORT, DriveConstants.BL_ANGLE_TALON_PORT, DriveConstants.BL_CANCODER_PORT, DriveConstants.BL_CANCODER_ZERO, "BL");
-        m_backRightModule = new SwerveModule(DriveConstants.BR_DRIVE_TALON_PORT, DriveConstants.BR_ANGLE_TALON_PORT, DriveConstants.BR_CANCODER_PORT, DriveConstants.BR_CANCODER_ZERO, "BR");
+        m_frontLeftModule = new SwerveModule(kFLDriveTalonPort, kFLAngleTalonPort, kFLCANCoderPort, kFLCANCoderZero, "FL");
+        m_frontRightModule = new SwerveModule(kFRDriveTalonPort, kFRAngleTalonPort, kFRCANCoderPort, kFRCANCoderZero, "FR");
+        m_backLeftModule = new SwerveModule(kBLDriveTalonPort, kBLAngleTalonPort, kBLCANCoderPort, kBLCANCoderZero, "BL");
+        m_backRightModule = new SwerveModule(kBRDriveTalonPort, kBRAngleTalonPort, kBRCANCoderPort, kBRCANCoderZero, "BR");
         
-        m_odometry = new SwerveDriveOdometry(DriveConstants.kDriveKinematics, Rotation2d.fromDegrees(m_pigeon.getFusedHeading()));
+        m_odometry = new SwerveDriveOdometry(kDriveKinematics, Rotation2d.fromDegrees(m_pigeon.getFusedHeading()));
 
         SmartDashboard.putData("Field", m_field);
 
@@ -60,11 +60,11 @@ public class Drivetrain extends SubsystemBase implements Loggable{
 
     public void drive(double xSpeed, double ySpeed, double rot, boolean fieldRelative) {
         SwerveModuleState[] states =
-        DriveConstants.kDriveKinematics.toSwerveModuleStates(
+        kDriveKinematics.toSwerveModuleStates(
           fieldRelative
             ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeed, ySpeed, rot, Rotation2d.fromDegrees(m_pigeon.getFusedHeading()))
             : new ChassisSpeeds(xSpeed, ySpeed, rot));
-        SwerveDriveKinematics.normalizeWheelSpeeds(states, DriveConstants.kMaxSpeedMetersPerSecond);
+        SwerveDriveKinematics.normalizeWheelSpeeds(states, kTeleopMaxSpeedMetersPerSecond);
         // for (int i = 0; i < states.length; i++) {
         //     SwerveModule module = m_modules[i];
         //     SwerveModuleState state = states[i];
@@ -82,8 +82,7 @@ public class Drivetrain extends SubsystemBase implements Loggable{
 
     //used in autonomous
     public void setModuleStates(SwerveModuleState[] desiredStates) {
-        SwerveDriveKinematics.normalizeWheelSpeeds(
-            desiredStates, AutoConstants.kMaxSpeedMetersPerSecond);
+        SwerveDriveKinematics.normalizeWheelSpeeds(desiredStates, kAutoMaxSpeedMetersPerSecond);
         m_frontLeftModule.setDesiredState(desiredStates[0]);
         m_frontRightModule.setDesiredState(desiredStates[1]);
         m_backLeftModule.setDesiredState(desiredStates[2]);

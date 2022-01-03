@@ -26,7 +26,10 @@ import edu.wpi.first.wpilibj.controller.SimpleMotorFeedforward;
 import edu.wpi.first.wpilibj.Sendable;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.kinematics.SwerveModuleState;
+import edu.wpi.first.wpilibj.shuffleboard.BuiltInLayouts;
+import edu.wpi.first.wpilibj.shuffleboard.LayoutType;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardLayout;
 import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.trajectory.TrapezoidProfile;
@@ -34,45 +37,31 @@ import frc.robot.Constants;
 import frc.robot.Constants.ModuleConstants;
 
 public class SwerveModule implements Loggable {
-    
+
     private final WPI_TalonFX m_driveMotor;
     private final WPI_TalonFX m_turningMotor;
-    private final CANCoder m_turningEncoder; 
+    private final CANCoder m_turningEncoder;
 
-    @Config
-    private final PIDController m_drivePIDController =
-        new PIDController(ModuleConstants.kPDrive, 0, 0);
+    private final PIDController m_drivePIDController = new PIDController(ModuleConstants.kPDrive, 0, 0);
 
-    SimpleMotorFeedforward m_driveFeedforward = new SimpleMotorFeedforward(
-        ModuleConstants.ksVoltsDrive, ModuleConstants.kvVoltSecondsPerMeterDrive);
+    SimpleMotorFeedforward m_driveFeedforward = new SimpleMotorFeedforward(ModuleConstants.ksVoltsDrive,
+            ModuleConstants.kvVoltSecondsPerMeterDrive);
 
+    private final ProfiledPIDController m_turningPIDController = new ProfiledPIDController(ModuleConstants.kPTurning, 0,
+            0.1, new TrapezoidProfile.Constraints(ModuleConstants.kModuleMaxAngularSpeedRadiansPerSecond,
+                    ModuleConstants.kModuleMaxModuleAngularAccelerationRadiansPerSecondSquared));
 
-    @Config
-    private final ProfiledPIDController m_turningPIDController = 
-        new ProfiledPIDController(
-            ModuleConstants.kPTurning, 
-            0,
-            0.1,
-            new TrapezoidProfile.Constraints(
-                ModuleConstants.kMaxModuleAngularSpeedRadiansPerSecond,
-                ModuleConstants.kMaxModuleAngularAccelerationRadiansPerSecondSquared));
-
-    SimpleMotorFeedforward m_turningFeedforward = new SimpleMotorFeedforward(
-        ModuleConstants.ksVoltsTurning, ModuleConstants.kvVoltSecondsPerMeterTurning);
+    SimpleMotorFeedforward m_turningFeedforward = new SimpleMotorFeedforward(ModuleConstants.ksVoltsTurning,
+            ModuleConstants.kvVoltSecondsPerMeterTurning);
 
     private final String m_moduleID;
-    public SwerveModule( 
-        int driveMotorID,
-        int turningMotorID,
-        int turningEncoderID, 
-        Rotation2d zero, 
-        String moduleID) {
-        
+
+    public SwerveModule(int driveMotorID, int turningMotorID, int turningEncoderID, Rotation2d zero, String moduleID) {
+
         this.m_moduleID = moduleID;
 
         this.m_driveMotor = new WPI_TalonFX(driveMotorID);
         this.m_turningMotor = new WPI_TalonFX(turningMotorID);
-
 
         this.m_turningEncoder = new CANCoder(turningEncoderID);
 
@@ -80,13 +69,11 @@ public class SwerveModule implements Loggable {
         m_turningEncoder.configAbsoluteSensorRange(AbsoluteSensorRange.Signed_PlusMinus180);
 
         m_turningPIDController.enableContinuousInput(-Math.PI, Math.PI);
-        
-        
+
     }
 
     public void addCustomLogging(ShuffleboardContainerWrapper container) {
     }
-
 
     public SwerveModuleState getState() {
         return new SwerveModuleState(this.getSpeedMetersPerSecond(), this.getHeading());
@@ -105,23 +92,19 @@ public class SwerveModule implements Loggable {
     private double getSpeedMetersPerSecond() {
         return m_driveMotor.getSelectedSensorVelocity() * ModuleConstants.kDriveDistMetersPerPulse;
     }
-    
 
     public void setDesiredState(SwerveModuleState desiredState) {
         double currentSpeedMetersPerSecond = this.getSpeedMetersPerSecond();
         Rotation2d currentHeading = this.getHeading();
 
-        SwerveModuleState state = 
-            SwerveModuleState.optimize(desiredState, currentHeading);
-        
-        
-        final double driveOutputVolts = 
-            m_drivePIDController.calculate(currentSpeedMetersPerSecond, state.speedMetersPerSecond)
-            + m_driveFeedforward.calculate(state.speedMetersPerSecond);
+        SwerveModuleState state = SwerveModuleState.optimize(desiredState, currentHeading);
 
-        final double turningOutputVolts = 
-            m_turningPIDController.calculate(currentHeading.getRadians(), state.angle.getRadians()) 
-            + m_turningFeedforward.calculate(m_turningPIDController.getSetpoint().velocity);
+        final double driveOutputVolts = m_drivePIDController.calculate(currentSpeedMetersPerSecond,
+                state.speedMetersPerSecond) + m_driveFeedforward.calculate(state.speedMetersPerSecond);
+
+        final double turningOutputVolts = m_turningPIDController.calculate(currentHeading.getRadians(),
+                state.angle.getRadians())
+                + m_turningFeedforward.calculate(m_turningPIDController.getSetpoint().velocity);
 
         m_driveMotor.setVoltage(driveOutputVolts);
         m_turningMotor.setVoltage(turningOutputVolts);
@@ -129,7 +112,7 @@ public class SwerveModule implements Loggable {
         SmartDashboard.putNumber("turn setpoint velocity", m_turningPIDController.getSetpoint().velocity);
         SmartDashboard.putNumber("drive output", driveOutputVolts);
         SmartDashboard.putNumber("turn output", turningOutputVolts);
-        
+
     }
 
     public void resetDriveEncoder() {
@@ -143,10 +126,21 @@ public class SwerveModule implements Loggable {
     public WPI_TalonFX getAngleMotor() {
         return m_turningMotor;
     }
-   
 
+    @Override
     public String configureLogName() {
         return m_moduleID;
     }
+
+    @Override
+    public LayoutType configureLayoutType() {
+        return BuiltInLayouts.kGrid;
+    }
+
+    @Override
+    public int[] configureLayoutSize() {
+        int[] size = {3,3};
+        return size;
+      }
     
 }

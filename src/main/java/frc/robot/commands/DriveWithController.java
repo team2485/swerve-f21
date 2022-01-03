@@ -34,17 +34,17 @@ public class DriveWithController extends CommandBase {
         final double xSpeed = 
             -m_xspeedLimiter.calculate(
                 Deadband.deadband(m_driver.getY(Hand.kLeft), OIConstants.kDriveDeadband))
-            * DriveConstants.kMaxSpeedMetersPerSecond;
+            * DriveConstants.kTeleopMaxSpeedMetersPerSecond;
         
         final double ySpeed = 
             -m_yspeedLimiter.calculate(
                 Deadband.deadband(m_driver.getX(Hand.kLeft), OIConstants.kDriveDeadband))
-            * DriveConstants.kMaxSpeedMetersPerSecond;
+            * DriveConstants.kTeleopMaxSpeedMetersPerSecond;
         
         final double rot = 
             -m_rotLimiter.calculate(
                 Deadband.deadband(m_driver.getX(Hand.kRight), OIConstants.kDriveDeadband))
-            * DriveConstants.kMaxAngularSpeedRadiansPerSecond;
+            * DriveConstants.kTeleopMaxAngularSpeedRadiansPerSecond;
         
         final boolean fieldRelative = !m_driver.getYButton();
         m_drivetrain.drive(xSpeed, ySpeed, rot, fieldRelative);

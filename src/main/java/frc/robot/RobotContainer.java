@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.geometry.Pose2d;
 import edu.wpi.first.wpilibj.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.geometry.Translation2d;
 import edu.wpi.first.wpilibj.kinematics.SwerveModuleState;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.trajectory.Trajectory;
 import edu.wpi.first.wpilibj.trajectory.TrajectoryConfig;
 import edu.wpi.first.wpilibj.trajectory.TrajectoryGenerator;
@@ -32,18 +33,18 @@ import frc.robot.commands.DriveWithController;
 import frc.robot.subsystems.Drivetrain;
 import frc.team2485.WarlordsLib.oi.Deadband;
 import frc.team2485.WarlordsLib.oi.WL_XboxController;
+import io.github.oblarg.oblog.annotations.Config;
 
 public class RobotContainer {
 
-  private final Drivetrain m_drivetrain;
-  private final WL_XboxController m_driver;
+  private final Drivetrain m_drivetrain = new Drivetrain();
+  private final WL_XboxController m_driver = new WL_XboxController(OIConstants.kDriverPort);
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
    */
   public RobotContainer() {
-    m_driver = new WL_XboxController(OIConstants.kDriverPort);
-    m_drivetrain = new Drivetrain();
+
 
     // Configure the button bindings
     configureButtonBindings();
@@ -81,8 +82,8 @@ public class RobotContainer {
    // Create config for trajectory
     TrajectoryConfig configForward =
         new TrajectoryConfig(
-                AutoConstants.kMaxSpeedMetersPerSecond,
-                AutoConstants.kMaxAccelerationMetersPerSecondSquared)
+                AutoConstants.kAutoMaxSpeedMetersPerSecond,
+                AutoConstants.kAutoMaxAccelerationMetersPerSecondSquared)
             // Add kinematics to ensure max speed is actually obeyed
             .setKinematics(DriveConstants.kDriveKinematics);
 
